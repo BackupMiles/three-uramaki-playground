@@ -10,10 +10,8 @@ varying vec3 vWorldPos;
 
 void main() {
   float d = length(vWorldPos - uHitWorldPos);
+  if (d > 1.0) discard;
 
   vec4 base = texture2D(uTex, vUv);
-  float spot = 1.0 - smoothstep(0.5, 1.5, d);
-
-  vec3 color = mix(base.rgb, base.rgb * 1.8, spot);
-  gl_FragColor = vec4(color, base.a);
+  gl_FragColor = base;
 }

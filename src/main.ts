@@ -1,21 +1,55 @@
-import { Material, Mesh, PerspectiveCamera, Raycaster, Scene, ShaderMaterial, TextureLoader, Vector2, Vector3, WebGLRenderer } from 'three'
+import { EquirectangularReflectionMapping, Mesh, PerspectiveCamera, Raycaster, Scene, ShaderMaterial, TextureLoader, Vector2, Vector3, WebGLRenderer } from 'three'
 import { GLTFLoader, OrbitControls } from 'three/examples/jsm/Addons.js'
-import fragment from './assets/shaders/illuminate.fragment.glsl?raw'
 import vertex from './assets/shaders/illuminate.vertex.glsl?raw'
-import './style.css'
+import baseFragment from './assets/shaders/base.fragment.glsl?raw'
+import maskFragment from './assets/shaders/mask.fragment.glsl?raw'
+import illuminateFragment from './assets/shaders/illuminate.fragment.glsl?raw'
+import hideFragment from './assets/shaders/hide.fragment.glsl?raw'
 import { isMesh } from './utils'
+import { GUI } from 'lil-gui'
+import './style.css'
 
 const SCALE_FACTOR = 15 as const
+const VECTOR3_ZERO = new Vector3(0, 0, 0)
+const ChosenFragment = {
+  Mask: maskFragment,
+  Illuminate: illuminateFragment,
+  Hide: hideFragment,
+  Base: baseFragment
+} as const
+
+type TChosenFragmentKey = keyof typeof ChosenFragment
+
+type TChosenFragment = {
+  value: TChosenFragmentKey
+}
+
+const chosen: TChosenFragment = {
+  value: 'Mask'
+}
+
+const setupGUI = (mesh: Mesh) => {
+  const gui = new GUI()
+  gui
+    .add(chosen, 'value', Object.keys(ChosenFragment) as TChosenFragmentKey[])
+    .onChange((value: TChosenFragmentKey) => {
+      (mesh.material as ShaderMaterial).fragmentShader = ChosenFragment[value];
+      (mesh.material as ShaderMaterial).needsUpdate = true
+    })
+  return gui
+}
 
 const main = () => {
   const canvas = document.querySelector('canvas')
+  
   if (!canvas) return
 
   const scene = new Scene()
   const camera = new PerspectiveCamera(75, 16/9, 0.01, 1000)
 
   const renderer = new WebGLRenderer({
-    canvas: canvas
+    canvas: canvas,
+    alpha: true
   })
   renderer.setSize(window.innerWidth, window.innerHeight)
   const controls = new OrbitControls(camera, renderer.domElement)
@@ -32,8 +66,9 @@ const main = () => {
 
   let model: Mesh
   const shaderMaterial = new ShaderMaterial({
-    fragmentShader: fragment,
+    fragmentShader: ChosenFragment[chosen.value],
     vertexShader: vertex,
+    transparent: true,
     uniforms: {
       uTime: { value: 1.0 },
       uTex: { value: texture },
@@ -45,14 +80,15 @@ const main = () => {
 
   loader.load('/src/assets/models/uramakiDragonRoll.glb', (data) => {
     model = data.scene.children[0] as Mesh
-
-    // model.material = new MeshBasicMaterial({ map: texture, color: new Color()})
     model.material = shaderMaterial
-    console.log(model.material)
     model.scale.setScalar(SCALE_FACTOR)
     scene.add(data.scene)
-    const uv = model.geometry.getAttribute('uv')
-    console.log('hasUv', uv)
+    setupGUI(model)
+  })
+
+  textureLoader.load('/src/assets/textures/mountain.jpg', (texture) => {
+    texture.mapping = EquirectangularReflectionMapping
+    scene.background = texture
   })
 
   function loop(time: number) {
@@ -67,8 +103,10 @@ const main = () => {
     const intersects = raycaster.intersectObjects(scene.children)
     for (const intersection of intersects) {
       if (!isMesh(intersection.object)) continue
-      (intersection.object.material as ShaderMaterial).uniforms.uHitWorldPos.value = intersection.point
-      console.log(intersection.object.material, intersection.point);
+      (intersection.object.material as ShaderMaterial).uniforms.uHitWorldPos.value.copy(intersection.point)
+    }
+    if (!intersects.length) {
+      shaderMaterial.uniforms.uHitWorldPos.value.copy(VECTOR3_ZERO)
     }
   }
 
@@ -83,7 +121,7 @@ const main = () => {
     controls.update()
     
     if (!model) return
-    model.position.y = Math.sin(_time * 0.002) * 0.5
+    model.position.y = Math.sin(_time * 0.00009) * 0.5
   }
 
   const handleMouseMove = (e: MouseEvent) => {
