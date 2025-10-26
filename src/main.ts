@@ -1,4 +1,4 @@
-import { EquirectangularReflectionMapping, Mesh, PerspectiveCamera, Raycaster, Scene, ShaderMaterial, TextureLoader, Vector2, Vector3, WebGLRenderer } from 'three'
+import { EquirectangularReflectionMapping, Mesh, NoToneMapping, PerspectiveCamera, Raycaster, Scene, ShaderMaterial, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer } from 'three'
 import { GLTFLoader, OrbitControls } from 'three/examples/jsm/Addons.js'
 import vertex from './assets/shaders/illuminate.vertex.glsl?raw'
 import baseFragment from './assets/shaders/base.fragment.glsl?raw'
@@ -8,9 +8,11 @@ import hideFragment from './assets/shaders/hide.fragment.glsl?raw'
 import { isMesh } from './utils'
 import { GUI } from 'lil-gui'
 import './style.css'
+import { playAudio } from './audio'
 
 const SCALE_FACTOR = 15 as const
 const VECTOR3_ZERO = new Vector3(0, 0, 0)
+
 const ChosenFragment = {
   Mask: maskFragment,
   Illuminate: illuminateFragment,
@@ -25,7 +27,7 @@ type TChosenFragment = {
 }
 
 const chosen: TChosenFragment = {
-  value: 'Mask'
+  value: 'Base'
 }
 
 const setupGUI = (mesh: Mesh) => {
@@ -60,6 +62,8 @@ const main = () => {
   const loader = new GLTFLoader()
   const textureLoader = new TextureLoader()
   const texture = textureLoader.load('/src/assets/textures/food-pack.png')
+  texture.colorSpace = SRGBColorSpace
+  renderer.outputColorSpace = SRGBColorSpace
 
   const pointer = new Vector2()
   const raycaster = new Raycaster()
@@ -75,8 +79,9 @@ const main = () => {
       uMouse: { value: new Vector2(0, 0) },
       uRes: { value: new Vector2(window.innerWidth, window.innerHeight * 9 / 16) },
       uHitWorldPos: { value: new Vector3(0, 0, 0) }
-    }
+    },
   })
+  renderer.toneMapping = NoToneMapping
 
   loader.load('/src/assets/models/uramakiDragonRoll.glb', (data) => {
     model = data.scene.children[0] as Mesh
@@ -117,11 +122,12 @@ const main = () => {
     renderer.render(scene, camera)
   }
 
-  function animate(_time: number) {
+  function animate(time: number) {
     controls.update()
     
     if (!model) return
-    model.position.y = Math.sin(_time * 0.00009) * 0.5
+    model.position.y = Math.sin(time * 0.002) * 0.5
+    model.rotateOnAxis(new Vector3(0, 1, 0), Math.cos(time * 1e-20) * 0.005)
   }
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -144,3 +150,4 @@ const main = () => {
 }
 
 main()
+playAudio()
