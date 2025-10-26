@@ -1,9 +1,8 @@
-import { EquirectangularReflectionMapping, Mesh, NoToneMapping, PerspectiveCamera, Raycaster, Scene, ShaderMaterial, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer } from 'three'
+import { EquirectangularReflectionMapping, Euler, Mesh, NoToneMapping, PerspectiveCamera, Raycaster, Scene, ShaderMaterial, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer } from 'three'
 import { GLTFLoader, OrbitControls } from 'three/examples/jsm/Addons.js'
-import vertex from './assets/shaders/illuminate.vertex.glsl?raw'
+import vertex from './assets/shaders/base.vertex.glsl?raw'
 import baseFragment from './assets/shaders/base.fragment.glsl?raw'
-import maskFragment from './assets/shaders/mask.fragment.glsl?raw'
-import illuminateFragment from './assets/shaders/illuminate.fragment.glsl?raw'
+import shineFragment from './assets/shaders/shine.fragment.glsl?raw'
 import hideFragment from './assets/shaders/hide.fragment.glsl?raw'
 import { isMesh } from './utils'
 import { GUI } from 'lil-gui'
@@ -14,8 +13,7 @@ const SCALE_FACTOR = 15 as const
 const VECTOR3_ZERO = new Vector3(0, 0, 0)
 
 const ChosenFragment = {
-  Mask: maskFragment,
-  Illuminate: illuminateFragment,
+  Shine: shineFragment,
   Hide: hideFragment,
   Base: baseFragment
 } as const
@@ -124,8 +122,13 @@ const main = () => {
 
   function animate(time: number) {
     controls.update()
-    
     if (!model) return
+
+    if (chosen.value !== 'Base') {
+      model.position.y = 0
+      model.setRotationFromEuler(new Euler(0, 0, 0))
+      return
+    }
     model.position.y = Math.sin(time * 0.002) * 0.5
     model.rotateOnAxis(new Vector3(0, 1, 0), Math.cos(time * 1e-20) * 0.005)
   }
