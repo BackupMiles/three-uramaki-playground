@@ -6,9 +6,8 @@ export const playAudio = () => {
 
   body.onclick = () => {
     if (done) return
-    audio.volume = 0.2
+    audio.volume = 0.1
     audio.play()
     done = true
-    console.log("playing")
   }
 }
